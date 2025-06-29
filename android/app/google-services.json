@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "259390620824",
+    "project_id": "tripify-af9d7",
+    "storage_bucket": "tripify-af9d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259390620824:android:770b5b5cc432e6fded3ced",
+        "android_client_info": {
+          "package_name": "com.example.tripify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "259390620824-scflj46thjvtpt84v8smf08sgvkqj6lb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tripify",
+            "certificate_hash": "e776cb5da8bdc0cf9b3f24fcece487458292c067"
+          }
+        },
+        {
+          "client_id": "259390620824-fl4jku803h0u5uqfsmomtp5qf49j4f8q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6BuwDCLcqJ6upt7-QhZhpHsCSTFO6NdY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "259390620824-fl4jku803h0u5uqfsmomtp5qf49j4f8q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
