@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'models/trip.dart';
@@ -237,6 +238,60 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+  Widget _buildCountryCard(String country, String flag, Color color) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CountryCitiesPage(country: country),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              flag,
+              style: const TextStyle(fontSize: 48),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              country,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap to explore',
+              style: TextStyle(
+                fontSize: 12,
+                color: color.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Mock data for popular destinations
@@ -259,7 +314,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+        padding: const EdgeInsets.only(left: 24, right: 0, top: 0, bottom: 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -455,6 +510,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               },
             ),
             const SizedBox(height: 32),
+            // Trip Planning Section
+            const Text('Planning your next trip?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('Choose a country to explore cities and hotels', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            const SizedBox(height: 16),
+            // Countries Grid
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 3,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.8,
+              children: [
+                _buildCountryCard('Bangladesh', '🇧🇩', Colors.green),
+                _buildCountryCard('India', '🇮🇳', Colors.orange),
+                _buildCountryCard('Nepal', '🇳🇵', Colors.red),
+              ],
+            ),
+            const SizedBox(height: 32),
             const Text('Popular Destinations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             SizedBox(
@@ -594,6 +669,959 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
       ),
     );
+  }
+}
+
+class CountryCitiesPage extends StatefulWidget {
+  final String country;
+  
+  const CountryCitiesPage({super.key, required this.country});
+
+  @override
+  State<CountryCitiesPage> createState() => _CountryCitiesPageState();
+}
+
+class _CountryCitiesPageState extends State<CountryCitiesPage> {
+  List<String> get cities {
+    final countryHotels = hotels.where((hotel) => hotel.country == widget.country).toList();
+    return countryHotels.map((hotel) => hotel.city).toSet().toList();
+  }
+
+  String getCountryFlag() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return '🇧🇩';
+      case 'India':
+        return '🇮🇳';
+      case 'Nepal':
+        return '🇳🇵';
+      default:
+        return '🏳️';
+    }
+  }
+
+  Color getCountryColor() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return Colors.green;
+      case 'India':
+        return Colors.orange;
+      case 'Nepal':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Text(getCountryFlag()),
+            const SizedBox(width: 8),
+            Text(widget.country),
+          ],
+        ),
+        backgroundColor: getCountryColor().withOpacity(0.1),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cities in ${widget.country}',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Select a city to view hotels and create your trip',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.2,
+                ),
+                itemCount: cities.length,
+                itemBuilder: (context, index) {
+                  final city = cities[index];
+                  final cityHotels = hotels.where((hotel) => 
+                    hotel.country == widget.country && hotel.city == city
+                  ).toList();
+                  
+                  return _buildCityCard(city, cityHotels);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCityCard(String city, List<Hotel> cityHotels) {
+    final avgRating = cityHotels.isNotEmpty 
+      ? cityHotels.map((h) => h.rating).reduce((a, b) => a + b) / cityHotels.length 
+      : 0.0;
+    final minPrice = cityHotels.isNotEmpty 
+      ? cityHotels.map((h) => h.price).reduce((a, b) => a < b ? a : b) 
+      : 0.0;
+
+    // Get city image path
+    String getCityImagePath() {
+      // Map city names to their actual file names (matching exact case and extension)
+      final cityImageMap = {
+        'Dhaka': 'assets/images/city/Dhaka.jpg',
+        'Chittagong': 'assets/images/city/chittagong.jpg',
+        'Sylhet': 'assets/images/city/sylhet.jpeg',
+        'Cox\'s Bazar': 'assets/images/city/coxs-bazar.jpg',
+        'Rajshahi': 'assets/images/city/rajshahi.jpeg',
+        'Barisal': 'assets/images/city/Barisal.jpg',
+        'Khulna': 'assets/images/city/Khulna.webp',
+        'Delhi': 'assets/images/city/Delhi.jpeg',
+        'Mumbai': 'assets/images/city/mumbai.jpeg',
+        'Bangalore': 'assets/images/city/bangalore.jpeg',
+        'Jaipur': 'assets/images/city/jaipur.jpg',
+        'Kochi': 'assets/images/city/kochi.jpeg',
+        'Hyderabad': 'assets/images/city/Hyderabad.jpg',
+        'Chennai': 'assets/images/city/chennai.jpeg',
+        'Goa': 'assets/images/city/goa.jpeg',
+        'Kolkata': 'assets/images/city/kolkata.jpg',
+        'Shimla': 'assets/images/city/shimla.jpeg',
+        'Kathmandu': 'assets/images/city/kathmandu.jpeg',
+        'Pokhara': 'assets/images/city/pokhara.webp',
+        'Bhaktapur': 'assets/images/city/bhaktapur.jpeg',
+        'Lumbini': 'assets/images/city/lumbini.jpeg',
+        'Chitwan': 'assets/images/city/chitwan.jpeg',
+        'Nagarkot': 'assets/images/city/nagarkot.jpeg',
+        'Dharan': 'assets/images/city/dharan.jpeg',
+      };
+      
+      final imagePath = cityImageMap[city] ?? 'assets/images/city/Dhaka.jpg';
+      print('Loading city image for $city: $imagePath');
+      return imagePath;
+    }
+
+    Future<String> _testAssetExists(String assetPath) async {
+      try {
+        await rootBundle.load(assetPath);
+        return 'exists';
+      } catch (e) {
+        return 'not_found';
+      }
+    }
+
+    Widget _buildFallbackCityCard() {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: getCountryColor().withOpacity(0.1),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_city,
+                size: 48,
+                color: getCountryColor(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                city,
+                style: TextStyle(
+                  color: getCountryColor(),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CityPlacesPage(country: widget.country, city: city),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      height: 120,
+                                          child: FutureBuilder<String>(
+                      future: _testAssetExists(getCityImagePath()),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data == 'exists') {
+                          return Image.asset(
+                            getCityImagePath(),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              print('Error loading city image: ${getCityImagePath()} - $error');
+                              return _buildFallbackCityCard();
+                            },
+                          );
+                        } else {
+                          print('Asset not found: ${getCityImagePath()}');
+                          return _buildFallbackCityCard();
+                        }
+                      },
+                    ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    city,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${cityHotels.length} hotels',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (cityHotels.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber, size: 16),
+                        Text(
+                          ' ${avgRating.toStringAsFixed(1)}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'From \$${minPrice.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CityPlacesPage extends StatefulWidget {
+  final String country;
+  final String city;
+  const CityPlacesPage({super.key, required this.country, required this.city});
+
+  @override
+  State<CityPlacesPage> createState() => _CityPlacesPageState();
+}
+
+class _CityPlacesPageState extends State<CityPlacesPage> {
+  Color getCountryColor() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return Colors.green;
+      case 'India':
+        return Colors.orange;
+      case 'Nepal':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final places = cityPlaces[widget.city] ?? [];
+    final cityDescription = _getCityDescription(widget.city);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${widget.city}, ${widget.country}'),
+        backgroundColor: getCountryColor().withOpacity(0.1),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add Trip',
+            onPressed: () async {
+              final newTrip = await showDialog<Trip>(
+                context: context,
+                builder: (context) => AddTripDialog(
+                  initialDestination: widget.city,
+                  initialName: 'Trip to ${widget.city}',
+                ),
+              );
+              if (newTrip != null) {
+                try {
+                  await TripService.addTrip(newTrip);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Trip added!'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving trip: ' + e.toString()), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (cityDescription != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: getCountryColor().withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: getCountryColor().withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'About ${widget.city}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: getCountryColor(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    cityDescription,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                // Nearby Hotels Section FIRST
+                _NearbyHotelsSection(city: widget.city, country: widget.country),
+                const SizedBox(height: 24),
+                // City Places Section
+                ...places.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final place = entry.value;
+                  return Column(
+                    children: [
+                      if (idx > 0) const SizedBox(height: 12),
+                      Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ExpansionTile(
+                          leading: Icon(Icons.place, color: getCountryColor()),
+                          title: Text(
+                            place.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: place.description != null 
+                            ? Text(
+                                place.description!,
+                                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (place.description != null) ...[
+                                    Text(
+                                      'Description:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: getCountryColor(),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      place.description!,
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                  if (place.history != null) ...[
+                                    Text(
+                                      'History:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: getCountryColor(),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      place.history!,
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                  if (place.activities != null) ...[
+                                    Text(
+                                      'Activities:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: getCountryColor(),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      place.activities!,
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _getCityDescription(String city) {
+    final descriptions = {
+      'Dhaka': 'Dhaka, the bustling capital of Bangladesh, is a city of contrasts—where Mughal relics stand beside modern skyscrapers, and chaotic streets hide serene parks and historic landmarks.',
+      'Chittagong': 'Bangladesh\'s main seaport, surrounded by hills, beaches, and cultural landmarks.',
+      'Sylhet': 'Known for rolling tea gardens, holy shrines, and natural wonders.',
+      'Cox\'s Bazar': 'Home to the world\'s longest natural sea beach and stunning coastal landscapes.',
+      'Rajshahi': 'A historic city known for its ancient temples and cultural heritage.',
+      'Barisal': 'A riverine city with floating markets and scenic waterways.',
+      'Khulna': 'Gateway to the Sundarbans, the world\'s largest mangrove forest.',
+      'Delhi': 'India\'s capital, where history meets modernity.',
+      'Mumbai': 'India\'s financial hub with Bollywood glamour.',
+      'Bangalore': 'A tech hub with gardens and nightlife.',
+      'Jaipur': 'A regal city with forts and palaces.',
+      'Kochi': 'A historic port city with multicultural influences.',
+      'Hyderabad': 'A blend of Islamic heritage and IT growth.',
+      'Chennai': 'A coastal city with temples and colonial relics.',
+      'Goa': 'Sun, sand, and colonial charm.',
+      'Kolkata': 'A city of literature, art, and colonial history.',
+      'Shimla': 'A British-era hill station with scenic beauty.',
+    };
+    return descriptions[city];
+  }
+}
+
+class CityHotelsPage extends StatefulWidget {
+  final String country;
+  final String city;
+  final List<Hotel> hotels;
+  
+  const CityHotelsPage({
+    super.key, 
+    required this.country, 
+    required this.city, 
+    required this.hotels,
+  });
+
+  @override
+  State<CityHotelsPage> createState() => _CityHotelsPageState();
+}
+
+class _CityHotelsPageState extends State<CityHotelsPage> {
+  // Add filter state variables
+  double _minPrice = 0;
+  double _maxPrice = 200;
+  double _minRating = 0;
+  String _hotelSearch = '';
+
+  String getCountryFlag() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return '🇧🇩';
+      case 'India':
+        return '🇮🇳';
+      case 'Nepal':
+        return '🇳🇵';
+      default:
+        return '🏳️';
+    }
+  }
+
+  Color getCountryColor() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return Colors.green;
+      case 'India':
+        return Colors.orange;
+      case 'Nepal':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Filtered hotels based on search and filters
+  List<Hotel> get filteredHotels {
+    return widget.hotels.where((hotel) {
+      final priceMatch = hotel.price >= _minPrice && hotel.price <= _maxPrice;
+      final ratingMatch = hotel.rating >= _minRating;
+      final searchMatch = _hotelSearch.isEmpty ||
+        hotel.name.toLowerCase().contains(_hotelSearch.toLowerCase()) ||
+        hotel.facilities.any((facility) => 
+          facility.toLowerCase().contains(_hotelSearch.toLowerCase())
+        );
+      return priceMatch && ratingMatch && searchMatch;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Text(getCountryFlag()),
+            const SizedBox(width: 8),
+            Text('${widget.city}, ${widget.country}'),
+          ],
+        ),
+        backgroundColor: getCountryColor().withOpacity(0.1),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hotels in ${widget.city}',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Select a hotel to create your trip',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            // Hotel Search Box
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Search hotels',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: (value) => setState(() => _hotelSearch = value),
+            ),
+            const SizedBox(height: 12),
+            // Hotel Filters
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.filter_list, size: 12),
+                      const SizedBox(width: 4),
+                      const Text('Filters', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      Text(
+                        '\$${_minPrice.round()}-\$${_maxPrice.round()} | ${_minRating.toStringAsFixed(1)}+★',
+                        style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Text('Price:', style: TextStyle(fontSize: 9)),
+                      Expanded(
+                        child: RangeSlider(
+                          values: RangeValues(_minPrice, _maxPrice),
+                          min: 0,
+                          max: 200,
+                          divisions: 20,
+                          onChanged: (RangeValues values) {
+                            setState(() {
+                              _minPrice = values.start;
+                              _maxPrice = values.end;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text('Rating:', style: TextStyle(fontSize: 9)),
+                      Expanded(
+                        child: Slider(
+                          value: _minRating,
+                          min: 0.0,
+                          max: 5.0,
+                          divisions: 10,
+                          onChanged: (double value) {
+                            setState(() {
+                              _minRating = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${filteredHotels.length} hotels found',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredHotels.length,
+                itemBuilder: (context, index) {
+                  final hotel = filteredHotels[index];
+                  return _buildHotelCard(hotel);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHotelCard(Hotel hotel) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _showHotelInfoDialog(hotel),
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              child: Image.network(
+                hotel.imageUrl,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.grey[300],
+                  child: Icon(Icons.hotel, size: 64, color: Colors.grey[400]),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hotel.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: getCountryColor().withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '\$${hotel.price.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: getCountryColor(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.grey[600], size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${hotel.city}, ${hotel.country}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 16),
+                      Text(
+                        ' ${hotel.rating}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        ' (${hotel.reviewCount} reviews)',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: hotel.facilities.take(3).map((facility) => Chip(
+                      label: Text(facility, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: getCountryColor().withOpacity(0.1),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () {}, // Stop event propagation
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showHotelInfoDialog(hotel),
+                            icon: const Icon(Icons.info),
+                            label: const Text('Hotel Info'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: getCountryColor(),
+                              side: BorderSide(color: getCountryColor()),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showTripCreationDialog(hotel),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Trip'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: getCountryColor(),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHotelInfoDialog(Hotel hotel) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(hotel.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Price: \$${hotel.price.toStringAsFixed(0)}'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.star, color: Colors.amber, size: 16),
+                Text(' ${hotel.rating}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Location: ${hotel.city}, ${hotel.country}'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HotelDetailsPage(hotel: {
+                      'name': hotel.name,
+                      'price': '\$${hotel.price.toStringAsFixed(0)}',
+                      'rating': hotel.rating,
+                      'location': '${hotel.city}, ${hotel.country}',
+                      'image': hotel.imageUrl,
+                      'facilities': hotel.facilities,
+                      'reviews': hotel.reviews,
+                    }),
+                  ),
+                );
+              },
+              child: const Text('View Details'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTripCreationDialog(Hotel hotel) {
+    final tripImages = [
+      'assets/images/trips/trip1.jpg',
+      'assets/images/trips/trip2.jpeg',
+      'assets/images/trips/trip3.webp',
+      'assets/images/trips/trip4.jpeg',
+      'assets/images/trips/trip5.jpeg',
+    ];
+    final random = Random();
+    final imagePath = tripImages[random.nextInt(tripImages.length)];
+    
+    showDialog<Trip>(
+      context: context,
+      builder: (context) => AddTripDialog(
+        initialDestination: '${hotel.city}, ${hotel.country}',
+        initialName: 'Trip to ${hotel.city}',
+        initialImagePath: imagePath,
+      ),
+    ).then((newTrip) async {
+      if (newTrip != null) {
+        try {
+          await TripService.addTrip(newTrip);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Trip created successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pop(context); // Close the hotels page
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error creating trip: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    });
   }
 }
 
@@ -4581,3 +5609,324 @@ final List<String> hotelImages = [
   "https://images.unsplash.com/photo-1465156799763-2c087c332922?auto=format&fit=crop&w=400&q=80",
   "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
 ];
+
+// 1. Add city-to-places mapping at the top (after imports)
+class CityPlace {
+  final String name;
+  final String? description;
+  final String? history;
+  final String? activities;
+  CityPlace(this.name, [this.description, this.history, this.activities]);
+}
+
+final Map<String, List<CityPlace>> cityPlaces = {
+  // Bangladesh
+  'Dhaka': [
+    CityPlace('Lalbagh Fort (1678)', 'Features a mosque, the tomb of Pari Bibi, and lush gardens.', 'Built by Mughal Prince Muhammad Azam, son of Emperor Aurangzeb, but left incomplete.', 'Explore Mughal architecture, photography, and cultural events.'),
+    CityPlace('Ahsan Manzil (Pink Palace, 1872)', 'Pink-colored Indo-Saracenic palace with 23 galleries.', 'Former residence of the Nawabs of Dhaka; restored as a museum.', 'Museum tour, photography, riverfront walks.'),
+    CityPlace('National Parliament House (Jatiyo Sangsad Bhaban, 1982)', 'A masterpiece of modernist architecture with geometric lakes.', 'Designed by Louis Kahn, symbolizing democracy.', 'Guided tours (limited access), photography.'),
+    CityPlace('Liberation War Museum (1996)', 'Displays war artifacts, photographs, and personal stories.', 'Chronicles Bangladesh\'s 1971 independence struggle.', 'Historical tours, educational programs.'),
+    CityPlace('Ramna Park (17th Century)', 'A green oasis with walking trails and a lake.', 'A Mughal-era garden turned public park.', 'Picnics, jogging, cultural festivals.'),
+    CityPlace('Dhakeshwari Temple (12th Century)', 'A sacred site with terracotta architecture.', 'The national Hindu temple, possibly built by Ballal Sen.', 'Religious ceremonies, cultural festivals.'),
+    CityPlace('Baitul Mukarram Mosque (1968)', 'A blend of modern and Mughal design.', 'National mosque inspired by the Kaaba.', 'Prayer, architectural appreciation.'),
+  ],
+  'Chittagong': [
+    CityPlace('Patenga Beach', 'A sandy beach near the Karnaphuli River.', null, 'Sunset views, beachside cafes.'),
+    CityPlace("Foy's Lake (1924)", 'Scenic lake with amusement rides.', 'A man-made lake under British rule.', 'Boating, zip-lining, family outings.'),
+    CityPlace('Ethnological Museum (1974)', 'Exhibits on Bangladesh\'s indigenous tribes.', null, 'Cultural learning, artifact viewing.'),
+    CityPlace('War Cemetery (WWII Memorial)', null, 'Honors Commonwealth soldiers from WWII.', 'Historical reflection, guided tours.'),
+    CityPlace('Shrine of Bayazid Bostami (9th Century)', null, 'A revered Sufi saint\'s shrine with sacred turtles.', 'Religious visit, feeding turtles.'),
+  ],
+  'Sylhet': [
+    CityPlace('Ratargul Swamp Forest', 'A freshwater swamp forest with boat trails.', null, 'Boat safari, birdwatching.'),
+    CityPlace('Jaflong & Zero Point', 'Scenic hills, tea estates, and the Dawki River.', null, 'Stone-collecting, photography.'),
+    CityPlace('Lalakhal River', 'Turquoise waters with boat rides.', null, 'Speedboating, picnics.'),
+    CityPlace('Hazrat Shah Jalal Mazar (14th Century)', null, 'Shrine of a Sufi saint who spread Islam.', 'Religious pilgrimage.'),
+    CityPlace('Madhabkunda Waterfall', 'A 200-ft waterfall in lush forests.', null, 'Trekking, swimming.'),
+  ],
+  'Cox\'s Bazar': [
+    CityPlace("Cox's Bazar Beach (longest in the world)", 'The world\'s longest natural sea beach with golden sands.', null, 'Swimming, beach activities, sunset views.'),
+    CityPlace('Himchari National Park', 'Protected area with diverse wildlife and scenic trails.', null, 'Hiking, wildlife spotting, nature photography.'),
+    CityPlace('Inani Beach', 'Pristine beach known for its black rocks and clear waters.', null, 'Beachcombing, photography, relaxation.'),
+    CityPlace("Saint Martin's Island", 'Coral island with crystal clear waters and marine life.', null, 'Snorkeling, diving, island exploration.'),
+    CityPlace('Radiant Fish World', 'Marine aquarium showcasing local aquatic life.', null, 'Educational tours, family entertainment.'),
+  ],
+  'Rajshahi': [
+    CityPlace('Puthia Temple Complex', null, 'A historic site with ancient temples.', null),
+    CityPlace('Varendra Research Museum', null, 'Museum with archaeological and historical artifacts.', null),
+    CityPlace('Mahasthangarh (nearby Bogura)', null, 'Ancient archaeological site near Bogura.', null),
+    CityPlace('Padma River Sunset Point', null, 'Scenic spot for sunset views over the Padma River.', null),
+  ],
+  'Barisal': [
+    CityPlace('Kuakata Sea Beach', null, 'Famous for panoramic sea views and sunrise/sunset.', null),
+    CityPlace('Durga Sagar', null, 'Large pond and picnic spot.', null),
+    CityPlace('Lebur Char', null, 'A river island known for its natural beauty.', null),
+    CityPlace('Floating Guava Market', null, 'Unique floating market for guavas and other fruits.', null),
+  ],
+  'Khulna': [
+    CityPlace('Sundarbans Mangrove Forest (UNESCO)', null, "World's largest mangrove forest and UNESCO site.", null),
+    CityPlace('Sixty Dome Mosque (Bagerhat)', null, 'Historic mosque with 60 domes.', null),
+    CityPlace("Khan Jahan Ali's Tomb", null, 'Tomb of the founder of Bagerhat.', null),
+    CityPlace('Rupsha River Bridge', null, 'Bridge over the Rupsha River, scenic views.', null),
+  ],
+  // Nepal
+  'Kathmandu': [
+    CityPlace('Swayambhunath (Monkey Temple, 5th Century)', null, "One of Nepal's oldest Buddhist stupas.", 'Sunrise views, monkey sightings.'),
+    CityPlace('Boudhanath Stupa (14th Century)', 'A massive stupa and UNESCO site.', null, 'Circumambulation, prayer wheels.'),
+    CityPlace('Pashupatinath Temple (5th Century)', null, 'Sacred Hindu temple for cremation rituals.', 'Evening Aarti ceremonies.'),
+  ],
+  'Pokhara': [
+    CityPlace('Phewa Lake', null, null, 'Boating, paragliding.'),
+    CityPlace('World Peace Pagoda (1992)', 'Buddhist stupa with Annapurna views.', null, 'Hiking, meditation.'),
+  ],
+  'Bhaktapur': [
+    CityPlace('Bhaktapur Durbar Square', null, 'A medieval square with palaces and temples.', null),
+    CityPlace('Nyatapola Temple', null, 'Five-story pagoda temple.', null),
+    CityPlace('Pottery Square', null, 'Traditional pottery workshops.', null),
+    CityPlace('55 Window Palace', null, 'Historic palace with 55 windows.', null),
+  ],
+  'Lumbini': [
+    CityPlace('Maya Devi Temple', null, "Marks Buddha's birthplace.", 'Meditation, temple visit.'),
+    CityPlace('Lumbini Monastic Zone', 'International monasteries.', null, 'Cultural exploration.'),
+  ],
+  'Chitwan': [
+    CityPlace('Chitwan National Park (1973)', null, null, 'Elephant safari, rhino spotting.'),
+    CityPlace('Tharu Cultural Museum', 'Showcases indigenous Tharu culture.', null, 'Dance performances, crafts.'),
+  ],
+  'Nagarkot': [
+    CityPlace('Sunrise View Point', null, null, 'Panoramic mountain views.'),
+    CityPlace('Paragliding Base', 'Adventure sports with Himalayan backdrop.', null, null),
+  ],
+  'Dharan': [
+    CityPlace('B.P. Koirala Institute Park', 'Botanical garden with medicinal plants.', null, null),
+    CityPlace('Namaste Waterfall', null, null, 'Hiking, photography.'),
+  ],
+  // India
+  'Delhi': [
+    CityPlace('Red Fort (1639)', null, "Mughal Emperor Shah Jahan's fortress.", 'Light & sound show, museum visit.'),
+    CityPlace('Qutub Minar (1193)', null, "World's tallest brick minaret by Qutb-ud-din Aibak.", 'Photography, historical exploration.'),
+  ],
+  'Goa': [
+    CityPlace('Calangute Beach', null, null, 'Water sports, nightlife.'),
+    CityPlace('Basilica of Bom Jesus (1605)', null, "Holds St. Francis Xavier's relics.", 'Religious visit, architectural tour.'),
+  ],
+  'Jaipur': [
+    CityPlace('Amber Fort (1592)', null, 'Rajput-Mughal palace with mirror work.', 'Elephant ride, light show.'),
+    CityPlace('Hawa Mahal (1799)', 'Palace with 953 windows for royal women.', null, 'Photography, rooftop views.'),
+  ],
+  'Shimla': [
+    CityPlace('The Ridge', 'Open square with Himalayan views.', null, 'Shopping, sunset views.'),
+    CityPlace('Kufri (Snow Point)', null, null, 'Skiing, yak rides (winter).'),
+  ],
+  'Kolkata': [
+    CityPlace('Victoria Memorial (1921)', null, 'British-era marble museum.', 'Museum tour, garden walks.'),
+    CityPlace('Howrah Bridge (1943)', 'Iconic cantilever bridge over the Hooghly.', null, 'Evening stroll, ferry ride.'),
+  ],
+  'Mumbai': [
+    CityPlace('Gateway of India (1924)', null, 'Built to welcome British royalty.', 'Boat rides to Elephanta Caves.'),
+    CityPlace('Marine Drive', 'A crescent-shaped promenade.', null, 'Sunset views, street food.'),
+  ],
+  'Bangalore': [
+    CityPlace('Lalbagh Botanical Garden (1760)', null, "Hyder Ali's garden with rare plants.", 'Flower shows, jogging.'),
+    CityPlace('Bangalore Palace (1887)', 'Tudor-style royal palace.', null, 'Palace tour, photography.'),
+  ],
+  'Hyderabad': [
+    CityPlace('Charminar (1591)', null, 'Iconic mosque-symbol of Hyderabad.', 'Market shopping, night view.'),
+    CityPlace('Golconda Fort (16th Century)', 'Diamond-trade fort with acoustics.', null, 'Sound & light show, trekking.'),
+  ],
+  'Chennai': [
+    CityPlace('Marina Beach', 'Second-longest urban beach.', null, 'Sunrise walks, street food.'),
+    CityPlace('Kapaleeshwarar Temple (7th Century)', null, 'Dravidian-style Shiva temple.', 'Religious visit, festival viewing.'),
+  ],
+  'Kochi': [
+    CityPlace('Fort Kochi', 'Colonial-era area with European charm.', null, 'Chinese fishing nets, art cafes.'),
+    CityPlace('Mattancherry Palace (1555)', null, 'Dutch-built palace with Hindu murals.', 'Museum tour, heritage walk.'),
+  ],
+};
+
+class _NearbyHotelsSection extends StatefulWidget {
+  final String city;
+  final String country;
+  const _NearbyHotelsSection({required this.city, required this.country});
+
+  @override
+  State<_NearbyHotelsSection> createState() => _NearbyHotelsSectionState();
+}
+
+class _NearbyHotelsSectionState extends State<_NearbyHotelsSection> {
+  double _minPrice = 0;
+  double _maxPrice = 200;
+  double _minRating = 0;
+  String _hotelSearch = '';
+  bool _expanded = false;
+
+  List<Hotel> get _cityHotels => hotels.where((h) => h.city == widget.city && h.country == widget.country).toList();
+
+  List<Hotel> get _filteredHotels {
+    return _cityHotels.where((hotel) {
+      final priceMatch = hotel.price >= _minPrice && hotel.price <= _maxPrice;
+      final ratingMatch = hotel.rating >= _minRating;
+      final searchMatch = _hotelSearch.isEmpty ||
+        hotel.name.toLowerCase().contains(_hotelSearch.toLowerCase()) ||
+        hotel.facilities.any((facility) => facility.toLowerCase().contains(_hotelSearch.toLowerCase()));
+      return priceMatch && ratingMatch && searchMatch;
+    }).toList();
+  }
+
+  Color getCountryColor() {
+    switch (widget.country) {
+      case 'Bangladesh':
+        return Colors.green;
+      case 'India':
+        return Colors.orange;
+      case 'Nepal':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        onExpansionChanged: (val) => setState(() => _expanded = val),
+        leading: Icon(Icons.hotel, color: getCountryColor()),
+        title: Text('Nearby Hotels', style: TextStyle(fontWeight: FontWeight.bold, color: getCountryColor())),
+        subtitle: Text('${_cityHotels.length} hotels in ${widget.city}'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Filter UI
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Search hotels',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                  onChanged: (value) => setState(() => _hotelSearch = value),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Text('Price:', style: TextStyle(fontSize: 11)),
+                    Expanded(
+                      child: RangeSlider(
+                        values: RangeValues(_minPrice, _maxPrice),
+                        min: 0,
+                        max: 200,
+                        divisions: 20,
+                        onChanged: (RangeValues values) {
+                          setState(() {
+                            _minPrice = values.start;
+                            _maxPrice = values.end;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(' 24${_minPrice.round()}- 24${_maxPrice.round()}', style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Text('Rating:', style: TextStyle(fontSize: 11)),
+                    Expanded(
+                      child: Slider(
+                        value: _minRating,
+                        min: 0.0,
+                        max: 5.0,
+                        divisions: 10,
+                        onChanged: (double value) {
+                          setState(() {
+                            _minRating = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${_minRating.toStringAsFixed(1)}+', style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('${_filteredHotels.length} hotels found', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 6),
+                if (_filteredHotels.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(child: Text('No hotels found for this city.', style: TextStyle(fontSize: 12))),
+                  ),
+                ..._filteredHotels.map((hotel) => _buildHotelCard(hotel)).toList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHotelCard(Hotel hotel) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            hotel.imageUrl,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const Icon(Icons.hotel, size: 32),
+          ),
+        ),
+        title: Text(hotel.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(' 24${hotel.price}  •  ${hotel.rating}★', style: const TextStyle(fontSize: 12)),
+            Text(hotel.facilities.join(', '), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.info_outline, size: 20),
+          tooltip: 'Hotel Info',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text(hotel.name),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Price:  24${hotel.price}'),
+                    Text('Rating: ${hotel.rating}★'),
+                    Text('Facilities: ${hotel.facilities.join(', ')}'),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
